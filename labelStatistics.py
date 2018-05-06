@@ -40,19 +40,30 @@ def getFileList(direc_path: str, ext: str = 'png') -> List[str]:
     return files
 
 def makeFileListDF(files: List[str]) -> pd.DataFrame:
-    # Returns a pandas DataFrame where each row describes each file in files
-    columns = ['filename', 'dataset']
-    df = pd.DataFrame(columns = columns)
+    """
+    Returns a pandas DataFrame where each row describes each file in files. 
+    Each integer column contains the number of pixels in the image with that label
+    """
+    # convert paths to relative:
+    basenames = map(os.path.basename, files)
+    columns = ['dataset']
+    df = pd.DataFrame(index = basenames, columns = columns)
+    df.rename_axis('filename')
 
     # For each image:
-    for file in files:
+    for file, basename in zip(files, basenames):
         #Read in image:
         image = readImage(file)    
 
         d = uniqueCounts(image)
 
         for k, v in d.items():
-            
+            if k not in df.columns:
+                # add column named by label ID
+                df[k] = 0
+                df.at[basename, k] = v
+            else:
+                df.at[basename, k] = v
 
         # parse file name and record:
         #    dataset ID (i.e. parent domain of: {cityscapes, scannet, wilddash, kitti})
