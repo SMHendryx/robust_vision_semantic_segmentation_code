@@ -39,16 +39,46 @@ def getFileList(direc_path: str, ext: str = 'png') -> List[str]:
 
     return files
 
+def before(string: str, stop_string:str = '_') -> str:
+    # Returns the string before stop_string (which on default is everything before the firs underscore '_')
+    pos = string.find(stop_string)
+    if pos == -1:
+        return ""
+    else:
+        return string[0:pos]
+
+def uniqueCounts(a: np.ndarray) -> dict:
+    # Returns a dictionary of the counts of each unique value from numpy array a
+    #>>> a = numpy.array([0, 3, 0, 1, 0, 1, 2, 1, 0, 0, 0, 0, 1, 3, 4])
+    #>>> unique, counts = numpy.unique(a, return_counts=True)    
+    #>>> dict(zip(unique, counts))
+    #{0: 7, 1: 4, 2: 1, 3: 2, 4: 1}
+    unique, counts = np.unique(a, return_counts=True)
+    return dict(zip(unique, counts))
+
+def readImage(path: str) -> Image:
+    try:
+        # load image
+        with open(path, 'rb') as f:
+            with Image.open(f) as image:
+                return np.array(image)
+    except IOError:
+        raise RuntimeError(logger.error('Cannot retrieve image. Please check path: %s' % path))
+
+
 def makeFileListDF(files: List[str]) -> pd.DataFrame:
     """
     Returns a pandas DataFrame where each row describes each file in files. 
     Each integer column contains the number of pixels in the image with that label
     """
     # convert paths to relative:
-    basenames = map(os.path.basename, files)
-    columns = ['dataset']
-    df = pd.DataFrame(index = basenames, columns = columns)
-    df.rename_axis('filename')
+    basenames = list(map(os.path.basename, files))
+    columns = ['filename', 'dataset']
+    df = pd.DataFrame(columns = columns)
+    df['filename'] = basenames
+
+    # get dataset:
+    df['dataset'] = df.filename.apply(before)
 
     # For each image:
     for file, basename in zip(files, basenames):
@@ -69,25 +99,8 @@ def makeFileListDF(files: List[str]) -> pd.DataFrame:
         #    dataset ID (i.e. parent domain of: {cityscapes, scannet, wilddash, kitti})
         #    image name
         #   Get unique IDs and number of pixels of each ID
-        image.close()
+    return df
 
-def uniqueCounts(a: np.ndarray) -> dict:
-    # Returns a dictionary of the counts of each unique value from numpy array a
-    #>>> a = numpy.array([0, 3, 0, 1, 0, 1, 2, 1, 0, 0, 0, 0, 1, 3, 4])
-    #>>> unique, counts = numpy.unique(a, return_counts=True)    
-    #>>> dict(zip(unique, counts))
-    #{0: 7, 1: 4, 2: 1, 3: 2, 4: 1}
-    unique, counts = np.unique(a, return_counts=True)
-    return dict(zip(unique, counts))
-
-def readImage(path: str) -> Image:
-    try:
-        # load image
-        with Image.open(path) as image:
-            return np.array(image)
-        #logger.info('image opened')
-    except IOError:
-        raise RuntimeError(logger.error('Cannot retrieve image. Please check path: %s' % path))
 
 #------------------------------------------------------------------------------#
 #   Main
@@ -99,3 +112,6 @@ path_to_labels = '/Users/seanmhendryx/githublocal/rob_devkit/segmentation/datase
 lab_files = getFileList(path_to_labels)
 
 df = makeFileListDF(lab_files)
+
+
+uniqueCounts(df.dataset)
