@@ -15,12 +15,12 @@ import argparse
 
 # Set up logging
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+
 #Set up file handler:
 #fh = logging.FileHandler(os.path.basename(__file__) + str(datetime.now()).replace(" ", "_") + '.log')
 # Pipe output to stdout
 sh = logging.StreamHandler(sys.stdout)
-sh.setLevel(logging.DEBUG)
+sh.setLevel(logging.ERROR)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 sh.setFormatter(formatter)
 logger.addHandler(sh)
@@ -80,25 +80,34 @@ def makeFileListDF(files: List[str]) -> pd.DataFrame:
     # get dataset:
     df['dataset'] = df.filename.apply(before)
 
-    # For each image:
+    # After getting dataset, set file basename as index:
+    df.set_index('filename', inplace=True)
+
+    # Loop through images and count label occurences:
+    num_files = len(basenames)
+    i = 0
+    percentage = .01
     for file, basename in zip(files, basenames):
         #Read in image:
         image = readImage(file)    
 
         d = uniqueCounts(image)
 
+        # Get unique IDs and number of pixels of each ID:
         for k, v in d.items():
             if k not in df.columns:
                 # add column named by label ID
-                df[k] = 0
+                df[k] = np.nan
                 df.at[basename, k] = v
             else:
                 df.at[basename, k] = v
 
-        # parse file name and record:
-        #    dataset ID (i.e. parent domain of: {cityscapes, scannet, wilddash, kitti})
-        #    image name
-        #   Get unique IDs and number of pixels of each ID
+        i += 1
+        if i/num_files >= percentage:
+            print(percentage)
+            percentage += .01
+
+    
     return df
 
 
@@ -113,5 +122,16 @@ lab_files = getFileList(path_to_labels)
 
 df = makeFileListDF(lab_files)
 
+#len(df.columns)
+#Out[14]: 76
 
+# Number of images from each dataset:
 uniqueCounts(df.dataset)
+# {'Cityscapes': 3475, 'Kitti2015': 200, 'ScanNet': 24353, 'WildDash': 70}
+
+
+#uniqueCounts(df.drop(['filename', 'dataset'], axis=1))
+# Are the IDs unique across datasets? 
+# Check to make sure label IDs with pixel counts (values, not nan) are exclusive to 
+# each dataset
+
